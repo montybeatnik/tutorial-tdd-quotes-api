@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +14,7 @@ func TestHandleQuotes(t *testing.T) {
 	testCases := []struct {
 		name           string
 		method         string
+		route          string
 		body           []byte
 		expectedStatus int
 		expectedBody   string
@@ -52,15 +55,44 @@ func TestHandleQuotes(t *testing.T) {
 			expectedStatus: http.StatusCreated,
 			expectedBody:   `{"message":"succesfully created quote"}`,
 		},
+		// GET TESTS
+		{
+			name:           "get invalid id",
+			method:         http.MethodGet,
+			route:          "/one",
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   `{"error":"the id must be a positive integer"}`,
+		},
+		{
+			name:           "get non-existant id",
+			method:         http.MethodGet,
+			route:          "/42",
+			expectedStatus: http.StatusNotFound,
+			expectedBody:   `{"message":"couldn't find quote matching that id"}`,
+		},
+		{
+			name:           "get no route",
+			method:         http.MethodGet,
+			expectedStatus: http.StatusOK,
+			expectedBody:   `{"quotes":[{"author":"Gandhi","message":"be the change!"},{"author":"bill","message":"excellent!"}]}`,
+		},
+		{
+			name:           "get success",
+			method:         http.MethodGet,
+			route:          "/1",
+			expectedStatus: http.StatusOK,
+			expectedBody:   `{"author":"Gandhi","message":"be the change!"}`,
+		},
 	}
 	// stand up an instance of our app
-	app := newApp()
+	log := log.New(io.Discard, "", 0)
+	app := newApp(log)
 	// grab an http server from the testing package
 	ts := httptest.NewServer(http.HandlerFunc(app.handleQuotes))
 	// build a request
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			url := ts.URL
+			url := fmt.Sprintf("%v%v", ts.URL, tc.route)
 			req, err := http.NewRequest(tc.method, url, bytes.NewReader(tc.body))
 			if err != nil {
 				t.Errorf("couldn't build request: %v", err)
