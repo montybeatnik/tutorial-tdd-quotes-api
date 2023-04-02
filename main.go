@@ -6,11 +6,14 @@ import (
 	"net/http"
 )
 
+// Quote reprsents insightful text and
+// it's origin.
 type Quote struct {
 	Author  string `json:"author"`
 	Message string `json:"message"`
 }
 
+// validate ensures certain quote conditions are met.
 func (q *Quote) validate() error {
 	if q.Author == "" && q.Message == "" {
 		return errors.New("please provide both an author and a message")
@@ -24,12 +27,16 @@ func (q *Quote) validate() error {
 	return nil
 }
 
+// application holds app dependencies
 type application struct {
 	store map[int]Quote
 }
 
+// count serves as our PK/ID for quotes
+// in the data store.
 var count int
 
+// newApp spins up a new app, factoring in dependencies.
 func newApp() *application {
 	store := make(map[int]Quote)
 	count++
