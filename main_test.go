@@ -74,19 +74,19 @@ func TestHandleQuotes(t *testing.T) {
 			name:           "get no route",
 			method:         http.MethodGet,
 			expectedStatus: http.StatusOK,
-			expectedBody:   `{"quotes":[{"author":"Gandhi","message":"be the change!"},{"author":"bill","message":"excellent!"}]}`,
+			expectedBody:   `{"quotes":[{"id":1,"author":"Gandhi","message":"be the change!"},{"id":2,"author":"bill","message":"excellent!"}]}`,
 		},
 		{
 			name:           "get success",
 			method:         http.MethodGet,
 			route:          "/1",
 			expectedStatus: http.StatusOK,
-			expectedBody:   `{"author":"Gandhi","message":"be the change!"}`,
+			expectedBody:   `{"id":1,"author":"Gandhi","message":"be the change!"}`,
 		},
 	}
 	// stand up an instance of our app
 	log := log.New(io.Discard, "", 0)
-	app := newApp(log)
+	app := newApp(log, NewInMemStore())
 	// grab an http server from the testing package
 	ts := httptest.NewServer(http.HandlerFunc(app.handleQuotes))
 	// build a request
@@ -118,5 +118,12 @@ func TestHandleQuotes(t *testing.T) {
 				t.Errorf("got %v; expected %v", body, tc.expectedBody)
 			}
 		})
+	}
+}
+
+func BenchmarkCreateQuote(b *testing.B) {
+	quoteStore := NewInMemStore()
+	for n := 0; n < b.N; n++ {
+		_ = quoteStore.Create(Quote{Author: "thedude", Message: fmt.Sprintf("something-%d", n)})
 	}
 }

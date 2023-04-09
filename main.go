@@ -10,9 +10,12 @@ import (
 	"strings"
 )
 
+var ErrQuoteNotFound = errors.New("couldn't find quote matching that id")
+
 // Quote reprsents insightful text and
 // it's origin.
 type Quote struct {
+	ID      int    `json:"id"`
 	Author  string `json:"author"`
 	Message string `json:"message"`
 }
@@ -31,21 +34,58 @@ func (q *Quote) validate() error {
 	return nil
 }
 
-// application holds app dependencies
-type application struct {
-	log   *log.Logger
+type Repo interface {
+	Create(quote Quote) error
+	All() ([]Quote, error)
+	ByID(id int) (Quote, error)
+}
+
+type InMemStore struct {
 	store map[int]Quote
+}
+
+func NewInMemStore() InMemStore {
+	store := make(map[int]Quote)
+	count++
+	store[count] = Quote{ID: count, Author: "Gandhi", Message: "be the change!"}
+	return InMemStore{store: store}
 }
 
 // count serves as our PK/ID for quotes
 // in the data store.
 var count int
 
-// newApp spins up a new app, factoring in dependencies.
-func newApp(log *log.Logger) *application {
-	store := make(map[int]Quote)
+func (m InMemStore) Create(quote Quote) error {
 	count++
-	store[count] = Quote{Author: "Gandhi", Message: "be the change!"}
+	quote.ID = count
+	m.store[quote.ID] = quote
+	return nil
+}
+
+func (m InMemStore) All() ([]Quote, error) {
+	var quotes []Quote
+	for _, qt := range m.store {
+		quotes = append(quotes, Quote{ID: qt.ID, Author: qt.Author, Message: qt.Message})
+	}
+	return quotes, nil
+}
+
+func (m InMemStore) ByID(id int) (Quote, error) {
+	quote, found := m.store[id]
+	if !found {
+		return quote, ErrQuoteNotFound
+	}
+	return quote, nil
+}
+
+// application holds app dependencies
+type application struct {
+	log   *log.Logger
+	store Repo
+}
+
+// newApp spins up a new app, factoring in dependencies.
+func newApp(log *log.Logger, store Repo) *application {
 	return &application{store: store, log: log}
 }
 
@@ -74,8 +114,17 @@ func (app *application) handleQuotes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// add the quote to the store.
-		count++
-		app.store[count] = quote
+		if err := app.store.Create(quote); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			resp := map[string]string{"error": err.Error()}
+			bs, err := json.Marshal(resp)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.Write(bs)
+			return
+		}
 		resp := map[string]string{"message": "succesfully created quote"}
 		bs, err := json.Marshal(resp)
 		if err != nil {
@@ -85,10 +134,11 @@ func (app *application) handleQuotes(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 		w.Write(bs)
 	case http.MethodGet:
+		// Get all logic
 		if strings.Split(r.URL.Path, "/")[1] == "" {
-			var quotes []Quote
-			for _, qt := range app.store {
-				quotes = append(quotes, qt)
+			quotes, err := app.store.All()
+			if err != nil {
+				// deal with error
 			}
 			resp := map[string][]Quote{"quotes": quotes}
 			bs, err := json.Marshal(resp)
@@ -113,15 +163,15 @@ func (app *application) handleQuotes(w http.ResponseWriter, r *http.Request) {
 			w.Write(bs)
 			return
 		}
-		quote, found := app.store[id]
-		if !found {
-			resp := map[string]string{"message": "couldn't find quote matching that id"}
+		quote, err := app.store.ByID(id)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			resp := map[string]string{"message": err.Error()}
 			bs, err := json.Marshal(resp)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			w.WriteHeader(http.StatusNotFound)
 			w.Write(bs)
 			return
 		}
@@ -147,7 +197,7 @@ func (app *application) handleQuotes(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	log := log.New(os.Stdout, "[quotes] ", log.Ldate|log.Ltime|log.Lshortfile)
-	app := newApp(log)
+	app := newApp(log, NewInMemStore())
 	appAddr := "localhost:8000"
 	app.log.Println("quotes app listening on ", appAddr)
 	http.Handle("/", http.HandlerFunc(app.handleQuotes))

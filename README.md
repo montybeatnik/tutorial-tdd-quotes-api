@@ -23,6 +23,22 @@ go test -v
  go test -run TestHandleQuotes/post_no_body -v 
 ```
 
+## Benchmarks
+```bash
+go test -bench=. -run Bench
+```
+
+### Sample from InMem store
+```bash
+➜  tdd-quotes-api git:(bench) ✗ go test -bench=. -run Bench                         
+goos: darwin
+goarch: arm64
+pkg: github.com/montybeatnik/tutorials/tdd-quotes-api
+BenchmarkCreateQuote-10          3380576               324.2 ns/op
+PASS
+ok      github.com/montybeatnik/tutorials/tdd-quotes-api        1.569s
+```
+
 ## Curl Examples
 ```bash
 # POST
