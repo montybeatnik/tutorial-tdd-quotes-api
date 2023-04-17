@@ -121,6 +121,24 @@ func TestHandleQuotes(t *testing.T) {
 	}
 }
 
+func TestMapWrites(t *testing.T) {
+	// stand up an instance of our app
+	log := log.New(io.Discard, "", 0)
+	app := newApp(log, NewInMemStore())
+	// grab an http server from the testing package
+	ts := httptest.NewServer(http.HandlerFunc(app.handleQuotes))
+	body := []byte(`{"author":"bill","message":"excellent!"}`)
+	post := func() {
+		_, err := http.Post(ts.URL, "Content-Type:application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Log(err)
+		}
+	}
+	for i := 0; i < 5; i++ {
+		go post()
+	}
+}
+
 func BenchmarkCreateQuote(b *testing.B) {
 	quoteStore := NewInMemStore()
 	for n := 0; n < b.N; n++ {

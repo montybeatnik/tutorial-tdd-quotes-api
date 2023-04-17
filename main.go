@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var ErrQuoteNotFound = errors.New("couldn't find quote matching that id")
@@ -41,36 +42,39 @@ type Repo interface {
 }
 
 type InMemStore struct {
+	mu    sync.Mutex
 	store map[int]Quote
 }
 
-func NewInMemStore() InMemStore {
+func NewInMemStore() *InMemStore {
 	store := make(map[int]Quote)
 	count++
 	store[count] = Quote{ID: count, Author: "Gandhi", Message: "be the change!"}
-	return InMemStore{store: store}
+	return &InMemStore{store: store}
 }
 
 // count serves as our PK/ID for quotes
 // in the data store.
 var count int
 
-func (m InMemStore) Create(quote Quote) error {
+func (ms *InMemStore) Create(quote Quote) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
 	count++
 	quote.ID = count
-	m.store[quote.ID] = quote
+	ms.store[quote.ID] = quote
 	return nil
 }
 
-func (m InMemStore) All() ([]Quote, error) {
+func (ms *InMemStore) All() ([]Quote, error) {
 	var quotes []Quote
-	for _, qt := range m.store {
+	for _, qt := range ms.store {
 		quotes = append(quotes, Quote{ID: qt.ID, Author: qt.Author, Message: qt.Message})
 	}
 	return quotes, nil
 }
 
-func (m InMemStore) ByID(id int) (Quote, error) {
+func (m *InMemStore) ByID(id int) (Quote, error) {
 	quote, found := m.store[id]
 	if !found {
 		return quote, ErrQuoteNotFound
