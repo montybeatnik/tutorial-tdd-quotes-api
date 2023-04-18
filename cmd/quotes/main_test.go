@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/montybeatnik/tutorials/tdd-quotes-api/store"
 )
 
 func TestHandleQuotes(t *testing.T) {
@@ -86,7 +88,7 @@ func TestHandleQuotes(t *testing.T) {
 	}
 	// stand up an instance of our app
 	log := log.New(io.Discard, "", 0)
-	app := newApp(log, NewInMemStore())
+	app := newApp(log, store.NewInMem())
 	// grab an http server from the testing package
 	ts := httptest.NewServer(http.HandlerFunc(app.handleQuotes))
 	// build a request
@@ -124,7 +126,7 @@ func TestHandleQuotes(t *testing.T) {
 func TestMapWrites(t *testing.T) {
 	// stand up an instance of our app
 	log := log.New(io.Discard, "", 0)
-	app := newApp(log, NewInMemStore())
+	app := newApp(log, store.NewInMem())
 	// grab an http server from the testing package
 	ts := httptest.NewServer(http.HandlerFunc(app.handleQuotes))
 	body := []byte(`{"author":"bill","message":"excellent!"}`)
@@ -140,8 +142,8 @@ func TestMapWrites(t *testing.T) {
 }
 
 func BenchmarkCreateQuote(b *testing.B) {
-	quoteStore := NewInMemStore()
+	quoteStore := store.NewInMem()
 	for n := 0; n < b.N; n++ {
-		_ = quoteStore.Create(Quote{Author: "thedude", Message: fmt.Sprintf("something-%d", n)})
+		_ = quoteStore.Create(store.Quote{Author: "thedude", Message: fmt.Sprintf("something-%d", n)})
 	}
 }
