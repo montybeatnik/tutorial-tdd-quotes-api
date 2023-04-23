@@ -51,3 +51,8 @@ curl -X GET http://localhost:8000
 # GET a specific quote
 curl -X GET http://localhost:8000/1
 ```
+
+## Postgres 
+```bash
+export QUOTES_TEST_DSN='postgres://postgres:password@localhost:5432/quotes_db?sslmode=disable'
+```
