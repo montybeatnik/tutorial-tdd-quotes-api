@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 var (
@@ -18,6 +20,17 @@ type PGStore struct{ db *sql.DB }
 
 func NewPGStore(db *sql.DB) *PGStore {
 	return &PGStore{db: db}
+}
+
+func GetDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't connect to RDBMS: %v", err)
+	}
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("couldn't connect to database: %v", err)
+	}
+	return db, nil
 }
 
 func (ps *PGStore) Create(quote Quote) error {
